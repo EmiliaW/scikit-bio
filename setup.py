@@ -16,9 +16,7 @@ import sys
 
 from setuptools import find_packages, setup
 from setuptools.extension import Extension
-
-import numpy as np
-
+from setuptools.command.build_ext import build_ext
 
 if sys.version_info.major != 3:
     sys.exit("scikit-bio can only be used with Python 3. You are currently "
