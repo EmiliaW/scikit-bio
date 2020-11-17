@@ -77,21 +77,33 @@ extensions = [
     Extension("skbio.metadata._intersection",
               ["skbio/metadata/_intersection" + ext]),
     Extension("skbio.stats.__subsample",
-              ["skbio/stats/__subsample" + ext],
-              include_dirs=[np.get_include()]),
+              ["skbio/stats/__subsample" + ext]),
     Extension("skbio.alignment._ssw_wrapper",
               ["skbio/alignment/_ssw_wrapper" + ext,
                "skbio/alignment/_lib/ssw.c"],
-              extra_compile_args=ssw_extra_compile_args,
-              include_dirs=[np.get_include()]),
+              extra_compile_args=ssw_extra_compile_args),
     Extension("skbio.diversity._phylogenetic",
-              ["skbio/diversity/_phylogenetic" + ext],
-              include_dirs=[np.get_include()])
+              ["skbio/diversity/_phylogenetic" + ext])
 ]
 
-if USE_CYTHON:
-    from Cython.Build import cythonize
-    extensions = cythonize(extensions)
+class CustomBuildExtCommand(build_ext):
+    """build_ext command for use when numpy headers are needed"""
+
+    def run(self):
+        # Import numpy here, only when headers are needed
+        import numpy as np
+
+        # Add numpy headers to include_dirs
+        self.include_dirs.append(np.get_include())
+        super().run()
+
+    def finalize_options(self):
+        # Import Cython here, only when we need to cythonize extensions
+        if USE_CYTHON:
+            from Cython.Build import cythonize
+            self.ext_modules[:] = cythonize(self.ext_modules)
+        
+        super().finalize_options()
 
 setup(name='scikit-bio',
       version=version,
@@ -104,8 +116,8 @@ setup(name='scikit-bio',
       maintainer_email="gregcaporaso@gmail.com",
       url='http://scikit-bio.org',
       packages=find_packages(),
-      ext_modules=extensions,
-      include_dirs=[np.get_include()],
+      setup_requires=['numpy', 'cython'],
+      cmdclass={'build_ext': CustomBuildExtCommand},
       tests_require=['pytest', 'coverage'],
       install_requires=[
           'lockfile >= 0.10.2',  # req'd for our usage of CacheControl
@@ -120,6 +132,7 @@ setup(name='scikit-bio',
           'hdmedians >= 0.14.1',
           'scikit-learn >= 0.19.1'
       ],
+      ext_modules=extensions,
       classifiers=classifiers,
       package_data={
           'skbio.diversity.alpha.tests': ['data/qiime-191-tt/*'],
